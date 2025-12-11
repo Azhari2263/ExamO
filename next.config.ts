@@ -12,6 +12,8 @@ const nextConfig: NextConfig = {
     // 构建时忽略ESLint错误
     ignoreDuringBuilds: true,
   },
+  // ⬇️ TAMBAHKAN INI
+  devIndicators: false,  // Atau gunakan object untuk lebih spesifik
 };
 
 export default nextConfig;

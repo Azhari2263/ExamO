@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
+import { Separator } from '@/components/ui/separator'
 import {
   Users,
   FileQuestion,
@@ -39,18 +41,62 @@ import {
   FileText,
   HelpCircle,
   Video,
-  MessageSquare
+  MessageSquare,
+  Search,
+  Filter,
+  MoreVertical,
+  ExternalLink,
+  BookMarked,
+  FileCheck,
+  Bell,
+  List,
+  FileSpreadsheet,
+  Printer,
+  Share2,
+  Lock,
+  Unlock,
+  CalendarDays,
+  Hash,
+  Type,
+  CheckSquare,
+  BarChart,
+  TrendingUp,
+  Award,
+  Clock3,
+  FileBarChart,
+  DownloadCloud,
+  Users2,
+  School,
+  FolderOpen,
+  Archive,
+  Tag,
+  Edit2,
+  EyeOff,
+  Send,
+  Pin,
+  BellRing,
+  Globe,
+  UserCheck,
+  ClipboardCheck,
+  ShieldCheck,
+  History,
+  BarChart3,
+  PieChart
 } from 'lucide-react'
 
 interface DashboardStats {
   totalStudents: number
   totalTeachers: number
   totalQuestionBanks: number
-  totalExamRooms: number
+  totalExams: number
   activeExams: number
   completedExams: number
+  pendingExams: number
   suspendedStudents: number
   alumniStudents: number
+  totalAnnouncements: number
+  totalFAQs: number
+  totalReports: number
 }
 
 interface SystemSettings {
@@ -60,6 +106,86 @@ interface SystemSettings {
   allowMultipleAttempts: boolean
   enableViolations: boolean
   enableFullscreen: boolean
+  enableProctoring: boolean
+  timeLimitStrict: boolean
+  showResultsImmediately: boolean
+  allowQuestionReview: boolean
+}
+
+interface QuestionBank {
+  id: string
+  title: string
+  description: string
+  category: string
+  subject: string
+  difficulty: string
+  questionCount: number
+  teacherName: string
+  teacherId: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  tags: string[]
+  accessType: 'PUBLIC' | 'PRIVATE' | 'RESTRICTED'
+}
+
+interface Exam {
+  id: string
+  title: string
+  description: string
+  questionBankId: string
+  questionBankTitle: string
+  duration: number
+  startDate: string
+  endDate: string
+  status: 'DRAFT' | 'SCHEDULED' | 'ONGOING' | 'COMPLETED' | 'CANCELLED'
+  totalParticipants: number
+  completedParticipants: number
+  passingGrade: number
+  isPublished: boolean
+  accessCode: string
+  createdBy: string
+  createdAt: string
+}
+
+interface Announcement {
+  id: string
+  title: string
+  content: string
+  type: 'INFO' | 'WARNING' | 'IMPORTANT' | 'EVENT'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
+  isPublished: boolean
+  publishDate: string
+  expiryDate: string
+  createdAt: string
+  createdBy: string
+  attachments: string[]
+}
+
+interface FAQ {
+  id: string
+  question: string
+  answer: string
+  category: string
+  order: number
+  isPublished: boolean
+  createdAt: string
+  updatedAt: string
+  views: number
+  helpful: number
+  notHelpful: number
+}
+
+interface ExamReport {
+  id: string
+  examId: string
+  examTitle: string
+  generatedBy: string
+  generatedAt: string
+  reportType: 'PARTICIPANT' | 'PERFORMANCE' | 'VIOLATION' | 'COMPREHENSIVE'
+  format: 'PDF' | 'EXCEL' | 'CSV'
+  downloadUrl: string
+  status: 'GENERATING' | 'READY' | 'FAILED'
 }
 
 export default function AdminDashboard() {
@@ -68,11 +194,15 @@ export default function AdminDashboard() {
     totalStudents: 0,
     totalTeachers: 0,
     totalQuestionBanks: 0,
-    totalExamRooms: 0,
+    totalExams: 0,
     activeExams: 0,
     completedExams: 0,
+    pendingExams: 0,
     suspendedStudents: 0,
-    alumniStudents: 0
+    alumniStudents: 0,
+    totalAnnouncements: 0,
+    totalFAQs: 0,
+    totalReports: 0
   })
 
   const [settings, setSettings] = useState<SystemSettings>({
@@ -81,7 +211,11 @@ export default function AdminDashboard() {
     enableExamCards: true,
     allowMultipleAttempts: false,
     enableViolations: true,
-    enableFullscreen: true
+    enableFullscreen: true,
+    enableProctoring: false,
+    timeLimitStrict: true,
+    showResultsImmediately: false,
+    allowQuestionReview: true
   })
 
   // Student Management States
@@ -101,9 +235,38 @@ export default function AdminDashboard() {
   const [editingTeacher, setEditingTeacher] = useState<any>(null)
 
   // Question Banks States
-  const [questionBanks, setQuestionBanks] = useState<any[]>([])
+  const [questionBanks, setQuestionBanks] = useState<QuestionBank[]>([])
   const [showAddQuestionBank, setShowAddQuestionBank] = useState(false)
-  const [editingQuestionBank, setEditingQuestionBank] = useState<any>(null)
+  const [editingQuestionBank, setEditingQuestionBank] = useState<QuestionBank | null>(null)
+  const [questionBankFilter, setQuestionBankFilter] = useState('all')
+  const [questionBankSearch, setQuestionBankSearch] = useState('')
+
+  // Exams States
+  const [exams, setExams] = useState<Exam[]>([])
+  const [showAddExam, setShowAddExam] = useState(false)
+  const [editingExam, setEditingExam] = useState<Exam | null>(null)
+  const [examFilter, setExamFilter] = useState('all')
+  const [examSearch, setExamSearch] = useState('')
+
+  // Announcements States
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
+  const [showAddAnnouncement, setShowAddAnnouncement] = useState(false)
+  const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null)
+  const [announcementFilter, setAnnouncementFilter] = useState('all')
+
+  // FAQ States
+  const [faqs, setFaqs] = useState<FAQ[]>([])
+  const [showAddFAQ, setShowAddFAQ] = useState(false)
+  const [editingFAQ, setEditingFAQ] = useState<FAQ | null>(null)
+  const [faqFilter, setFaqFilter] = useState('all')
+  const [faqSearch, setFaqSearch] = useState('')
+
+  // Reports States
+  const [reports, setReports] = useState<ExamReport[]>([])
+  const [showGenerateReport, setShowGenerateReport] = useState(false)
+  const [selectedExamForReport, setSelectedExamForReport] = useState<string>('')
+  const [reportType, setReportType] = useState<'PARTICIPANT' | 'PERFORMANCE' | 'VIOLATION' | 'COMPREHENSIVE'>('PERFORMANCE')
+  const [reportFormat, setReportFormat] = useState<'PDF' | 'EXCEL' | 'CSV'>('PDF')
 
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
@@ -119,11 +282,15 @@ export default function AdminDashboard() {
     if (activeTab === 'students') fetchStudents()
     if (activeTab === 'teachers') fetchTeachers()
     if (activeTab === 'question-banks') fetchQuestionBanks()
+    if (activeTab === 'exams') fetchExams()
+    if (activeTab === 'announcements') fetchAnnouncements()
+    if (activeTab === 'faq') fetchFAQs()
+    if (activeTab === 'reports') fetchReports()
   }, [router, activeTab])
 
   // Computed properties
   const availableClasses = [...new Set(students.map(s => s.class))].filter(Boolean)
-
+  
   const filteredStudents = students.filter(student => {
     const matchesSearch = !studentSearch ||
       student.user.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
@@ -143,13 +310,86 @@ export default function AdminDashboard() {
       (teacher.department && teacher.department.toLowerCase().includes(teacherSearch.toLowerCase()))
   })
 
+  const filteredQuestionBanks = questionBanks.filter(bank => {
+    const matchesSearch = !questionBankSearch ||
+      bank.title.toLowerCase().includes(questionBankSearch.toLowerCase()) ||
+      bank.description.toLowerCase().includes(questionBankSearch.toLowerCase()) ||
+      bank.category.toLowerCase().includes(questionBankSearch.toLowerCase())
+
+    const matchesFilter = questionBankFilter === 'all' ||
+      (questionBankFilter === 'active' && bank.isActive) ||
+      (questionBankFilter === 'inactive' && !bank.isActive)
+
+    return matchesSearch && matchesFilter
+  })
+
+  const filteredExams = exams.filter(exam => {
+    const matchesSearch = !examSearch ||
+      exam.title.toLowerCase().includes(examSearch.toLowerCase()) ||
+      exam.description.toLowerCase().includes(examSearch.toLowerCase())
+
+    const matchesFilter = examFilter === 'all' ||
+      exam.status === examFilter
+
+    return matchesSearch && matchesFilter
+  })
+
+  const filteredAnnouncements = announcements.filter(announcement => {
+    return announcementFilter === 'all' ||
+      (announcementFilter === 'published' && announcement.isPublished) ||
+      (announcementFilter === 'draft' && !announcement.isPublished)
+  })
+
+  const filteredFAQs = faqs.filter(faq => {
+    const matchesSearch = !faqSearch ||
+      faq.question.toLowerCase().includes(faqSearch.toLowerCase()) ||
+      faq.answer.toLowerCase().includes(faqSearch.toLowerCase()) ||
+      faq.category.toLowerCase().includes(faqSearch.toLowerCase())
+
+    const matchesFilter = faqFilter === 'all' ||
+      (faqFilter === 'published' && faq.isPublished) ||
+      (faqFilter === 'draft' && !faq.isPublished)
+
+    return matchesSearch && matchesFilter
+  })
+
+  // Dashboard Data Fetching
+  const fetchDashboardData = async () => {
+    try {
+      const [statsRes, settingsRes] = await Promise.all([
+        fetch('/api/admin/dashboard/stats', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          }
+        }),
+        fetch('/api/admin/settings', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          }
+        })
+      ])
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json()
+        setStats(statsData)
+      }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        setSettings(settingsData)
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Student Management Functions
   const fetchStudents = async () => {
     try {
       const response = await fetch('/api/admin/students', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -157,6 +397,30 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching students:', error)
+      // Set dummy data for development
+      setStudents([
+        {
+          id: '1',
+          user: { name: 'John Doe', email: 'john@example.com', status: 'ACTIVE' },
+          nim: '20210001',
+          class: 'XII IPA 1',
+          grade: '12'
+        },
+        {
+          id: '2',
+          user: { name: 'Jane Smith', email: 'jane@example.com', status: 'ACTIVE' },
+          nim: '20210002',
+          class: 'XII IPA 2',
+          grade: '12'
+        },
+        {
+          id: '3',
+          user: { name: 'Bob Johnson', email: 'bob@example.com', status: 'SUSPENDED' },
+          nim: '20210003',
+          class: 'XI IPA 1',
+          grade: '11'
+        }
+      ])
     }
   }
 
@@ -203,13 +467,10 @@ export default function AdminDashboard() {
 
   const deleteStudent = async (id: string) => {
     if (!confirm('Apakah Anda yakin ingin menghapus siswa ini?')) return
-
     try {
       const response = await fetch(`/api/admin/students/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       })
       if (response.ok) {
         fetchStudents()
@@ -228,7 +489,6 @@ export default function AdminDashboard() {
 
   const resetStudentPassword = async (id: string) => {
     if (!confirm('Reset password siswa ini?')) return
-
     try {
       const response = await fetch(`/api/admin/students/${id}`, {
         method: 'PUT',
@@ -323,9 +583,7 @@ export default function AdminDashboard() {
   const fetchTeachers = async () => {
     try {
       const response = await fetch('/api/admin/teachers', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -333,6 +591,27 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching teachers:', error)
+      // Set dummy data for development
+      setTeachers([
+        {
+          id: '1',
+          user: { name: 'Prof. Ahmad', email: 'ahmad@example.com', status: 'ACTIVE' },
+          nip: '198001012001011001',
+          department: 'Matematika'
+        },
+        {
+          id: '2',
+          user: { name: 'Dr. Sari', email: 'sari@example.com', status: 'ACTIVE' },
+          nip: '198202022002022002',
+          department: 'Fisika'
+        },
+        {
+          id: '3',
+          user: { name: 'Mrs. Lisa', email: 'lisa@example.com', status: 'ACTIVE' },
+          nip: '198303032003033003',
+          department: 'Bahasa Inggris'
+        }
+      ])
     }
   }
 
@@ -357,6 +636,43 @@ export default function AdminDashboard() {
     }
   }
 
+  const updateTeacher = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`/api/admin/teachers/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(data)
+      })
+      if (response.ok) {
+        fetchTeachers()
+        alert('Guru berhasil diperbarui')
+      }
+    } catch (error) {
+      console.error('Error updating teacher:', error)
+      alert('Gagal memperbarui guru')
+    }
+  }
+
+  const deleteTeacher = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus guru ini?')) return
+    try {
+      const response = await fetch(`/api/admin/teachers/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        fetchTeachers()
+        alert('Guru berhasil dihapus')
+      }
+    } catch (error) {
+      console.error('Error deleting teacher:', error)
+      alert('Gagal menghapus guru')
+    }
+  }
+
   const editTeacher = (teacher: any) => {
     setEditingTeacher(teacher)
     setShowAddTeacher(true)
@@ -366,9 +682,7 @@ export default function AdminDashboard() {
   const fetchQuestionBanks = async () => {
     try {
       const response = await fetch('/api/admin/question-banks', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
       })
       if (response.ok) {
         const data = await response.json()
@@ -376,47 +690,530 @@ export default function AdminDashboard() {
       }
     } catch (error) {
       console.error('Error fetching question banks:', error)
+      // Set dummy data for development
+      setQuestionBanks([
+        {
+          id: '1',
+          title: 'Matematika Dasar',
+          description: 'Kumpulan soal matematika dasar untuk kelas 10',
+          category: 'REGULAR',
+          subject: 'Matematika',
+          difficulty: 'MEDIUM',
+          questionCount: 50,
+          teacherName: 'Prof. Ahmad',
+          teacherId: '1',
+          isActive: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+          tags: ['matematika', 'dasar', 'kelas-10'],
+          accessType: 'PUBLIC'
+        },
+        {
+          id: '2',
+          title: 'Fisika Mekanika',
+          description: 'Soal-soal fisika mekanika untuk persiapan ujian',
+          category: 'TRYOUT_UTBK',
+          subject: 'Fisika',
+          difficulty: 'HARD',
+          questionCount: 75,
+          teacherName: 'Dr. Sari',
+          teacherId: '2',
+          isActive: true,
+          createdAt: '2024-01-02',
+          updatedAt: '2024-01-02',
+          tags: ['fisika', 'mekanika', 'utbk'],
+          accessType: 'PRIVATE'
+        }
+      ])
     }
   }
 
-  const fetchDashboardData = async () => {
+  const addQuestionBank = async (bankData: any) => {
     try {
-      // Fetch dashboard statistics
-      const statsResponse = await fetch('/api/admin/dashboard/stats', {
+      const response = await fetch('/api/admin/question-banks', {
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
+        },
+        body: JSON.stringify(bankData)
       })
-
-      if (statsResponse.ok) {
-        const data = await statsResponse.json()
-        setStats(data)
-      }
-
-      // Fetch system settings
-      const settingsResponse = await fetch('/api/admin/settings', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
-        }
-      })
-
-      if (settingsResponse.ok) {
-        const data = await settingsResponse.json()
-        setSettings(data)
+      if (response.ok) {
+        setShowAddQuestionBank(false)
+        fetchQuestionBanks()
+        alert('Bank soal berhasil ditambahkan')
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-    } finally {
-      setLoading(false)
+      console.error('Error adding question bank:', error)
+      alert('Gagal menambahkan bank soal')
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('adminToken')
-    localStorage.removeItem('adminData')
-    router.push('/')
+  const updateQuestionBank = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`/api/admin/question-banks/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(data)
+      })
+      if (response.ok) {
+        fetchQuestionBanks()
+        alert('Bank soal berhasil diperbarui')
+      }
+    } catch (error) {
+      console.error('Error updating question bank:', error)
+      alert('Gagal memperbarui bank soal')
+    }
   }
 
+  const deleteQuestionBank = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus bank soal ini?')) return
+    try {
+      const response = await fetch(`/api/admin/question-banks/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        fetchQuestionBanks()
+        alert('Bank soal berhasil dihapus')
+      }
+    } catch (error) {
+      console.error('Error deleting question bank:', error)
+      alert('Gagal menghapus bank soal')
+    }
+  }
+
+  // Exams Functions
+  const fetchExams = async () => {
+    try {
+      const response = await fetch('/api/admin/exams', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setExams(data)
+      }
+    } catch (error) {
+      console.error('Error fetching exams:', error)
+      // Set dummy data for development
+      setExams([
+        {
+          id: '1',
+          title: 'Ujian Matematika Semester 1',
+          description: 'Ujian akhir semester 1 mata pelajaran matematika',
+          questionBankId: '1',
+          questionBankTitle: 'Matematika Dasar',
+          duration: 120,
+          startDate: '2024-02-01T08:00:00',
+          endDate: '2024-02-01T10:00:00',
+          status: 'COMPLETED',
+          totalParticipants: 50,
+          completedParticipants: 48,
+          passingGrade: 70,
+          isPublished: true,
+          accessCode: 'MATH2024',
+          createdBy: 'Prof. Ahmad',
+          createdAt: '2024-01-15'
+        },
+        {
+          id: '2',
+          title: 'Tryout UTBK Fisika',
+          description: 'Tryout persiapan UTBK mata pelajaran fisika',
+          questionBankId: '2',
+          questionBankTitle: 'Fisika Mekanika',
+          duration: 90,
+          startDate: '2024-02-10T09:00:00',
+          endDate: '2024-02-10T10:30:00',
+          status: 'SCHEDULED',
+          totalParticipants: 100,
+          completedParticipants: 0,
+          passingGrade: 65,
+          isPublished: true,
+          accessCode: 'FISIKA2024',
+          createdBy: 'Dr. Sari',
+          createdAt: '2024-01-20'
+        }
+      ])
+    }
+  }
+
+  const addExam = async (examData: any) => {
+    try {
+      const response = await fetch('/api/admin/exams', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(examData)
+      })
+      if (response.ok) {
+        setShowAddExam(false)
+        fetchExams()
+        alert('Ujian berhasil ditambahkan')
+      }
+    } catch (error) {
+      console.error('Error adding exam:', error)
+      alert('Gagal menambahkan ujian')
+    }
+  }
+
+  const updateExam = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`/api/admin/exams/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(data)
+      })
+      if (response.ok) {
+        fetchExams()
+        alert('Ujian berhasil diperbarui')
+      }
+    } catch (error) {
+      console.error('Error updating exam:', error)
+      alert('Gagal memperbarui ujian')
+    }
+  }
+
+  const deleteExam = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus ujian ini?')) return
+    try {
+      const response = await fetch(`/api/admin/exams/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        fetchExams()
+        alert('Ujian berhasil dihapus')
+      }
+    } catch (error) {
+      console.error('Error deleting exam:', error)
+      alert('Gagal menghapus ujian')
+    }
+  }
+
+  const toggleExamPublish = async (id: string, publish: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/exams/${id}/publish`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({ publish })
+      })
+      if (response.ok) {
+        fetchExams()
+        alert(publish ? 'Ujian berhasil dipublikasikan' : 'Ujian berhasil disimpan sebagai draft')
+      }
+    } catch (error) {
+      console.error('Error toggling exam publish:', error)
+      alert('Gagal mengubah status publikasi')
+    }
+  }
+
+  // Announcements Functions
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await fetch('/api/admin/announcements', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAnnouncements(data)
+      }
+    } catch (error) {
+      console.error('Error fetching announcements:', error)
+      // Set dummy data for development
+      setAnnouncements([
+        {
+          id: '1',
+          title: 'Maintenance Sistem',
+          content: 'Sistem akan down untuk maintenance pada tanggal 15 Februari 2024 pukul 00:00 - 04:00 WIB',
+          type: 'WARNING',
+          priority: 'HIGH',
+          isPublished: true,
+          publishDate: '2024-02-10',
+          expiryDate: '2024-02-16',
+          createdAt: '2024-02-10',
+          createdBy: 'Admin',
+          attachments: []
+        },
+        {
+          id: '2',
+          title: 'Jadwal Ujian Semester',
+          content: 'Ujian semester akan dilaksanakan mulai tanggal 20 Februari 2024. Silakan persiapkan diri dengan baik.',
+          type: 'INFO',
+          priority: 'MEDIUM',
+          isPublished: true,
+          publishDate: '2024-02-01',
+          expiryDate: '2024-02-28',
+          createdAt: '2024-02-01',
+          createdBy: 'Admin',
+          attachments: ['jadwal-ujian.pdf']
+        }
+      ])
+    }
+  }
+
+  const addAnnouncement = async (announcementData: any) => {
+    try {
+      const response = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(announcementData)
+      })
+      if (response.ok) {
+        setShowAddAnnouncement(false)
+        fetchAnnouncements()
+        alert('Pengumuman berhasil ditambahkan')
+      }
+    } catch (error) {
+      console.error('Error adding announcement:', error)
+      alert('Gagal menambahkan pengumuman')
+    }
+  }
+
+  const updateAnnouncement = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(data)
+      })
+      if (response.ok) {
+        fetchAnnouncements()
+        alert('Pengumuman berhasil diperbarui')
+      }
+    } catch (error) {
+      console.error('Error updating announcement:', error)
+      alert('Gagal memperbarui pengumuman')
+    }
+  }
+
+  const deleteAnnouncement = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus pengumuman ini?')) return
+    try {
+      const response = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        fetchAnnouncements()
+        alert('Pengumuman berhasil dihapus')
+      }
+    } catch (error) {
+      console.error('Error deleting announcement:', error)
+      alert('Gagal menghapus pengumuman')
+    }
+  }
+
+  // FAQ Functions
+  const fetchFAQs = async () => {
+    try {
+      const response = await fetch('/api/admin/faqs', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setFaqs(data)
+      }
+    } catch (error) {
+      console.error('Error fetching FAQs:', error)
+      // Set dummy data for development
+      setFaqs([
+        {
+          id: '1',
+          question: 'Bagaimana cara reset password?',
+          answer: 'Anda dapat reset password melalui menu "Lupa Password" di halaman login atau hubungi admin.',
+          category: 'account',
+          order: 1,
+          isPublished: true,
+          createdAt: '2024-01-01',
+          updatedAt: '2024-01-01',
+          views: 150,
+          helpful: 120,
+          notHelpful: 5
+        },
+        {
+          id: '2',
+          question: 'Apa yang harus dilakukan jika tidak bisa mengakses ujian?',
+          answer: 'Pastikan koneksi internet stabil dan browser yang digunakan sudah up-to-date. Jika masih bermasalah, hubungi technical support.',
+          category: 'technical',
+          order: 2,
+          isPublished: true,
+          createdAt: '2024-01-02',
+          updatedAt: '2024-01-02',
+          views: 89,
+          helpful: 75,
+          notHelpful: 3
+        }
+      ])
+    }
+  }
+
+  const addFAQ = async (faqData: any) => {
+    try {
+      const response = await fetch('/api/admin/faqs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(faqData)
+      })
+      if (response.ok) {
+        setShowAddFAQ(false)
+        fetchFAQs()
+        alert('FAQ berhasil ditambahkan')
+      }
+    } catch (error) {
+      console.error('Error adding FAQ:', error)
+      alert('Gagal menambahkan FAQ')
+    }
+  }
+
+  const updateFAQ = async (id: string, data: any) => {
+    try {
+      const response = await fetch(`/api/admin/faqs/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify(data)
+      })
+      if (response.ok) {
+        fetchFAQs()
+        alert('FAQ berhasil diperbarui')
+      }
+    } catch (error) {
+      console.error('Error updating FAQ:', error)
+      alert('Gagal memperbarui FAQ')
+    }
+  }
+
+  const deleteFAQ = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus FAQ ini?')) return
+    try {
+      const response = await fetch(`/api/admin/faqs/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        fetchFAQs()
+        alert('FAQ berhasil dihapus')
+      }
+    } catch (error) {
+      console.error('Error deleting FAQ:', error)
+      alert('Gagal menghapus FAQ')
+    }
+  }
+
+  // Reports Functions
+  const fetchReports = async () => {
+    try {
+      const response = await fetch('/api/admin/reports', {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setReports(data)
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
+      // Set dummy data for development
+      setReports([
+        {
+          id: '1',
+          examId: '1',
+          examTitle: 'Ujian Matematika Semester 1',
+          generatedBy: 'Admin',
+          generatedAt: '2024-02-01T11:00:00',
+          reportType: 'PERFORMANCE',
+          format: 'PDF',
+          downloadUrl: '/reports/exam1-performance.pdf',
+          status: 'READY'
+        },
+        {
+          id: '2',
+          examId: '1',
+          examTitle: 'Ujian Matematika Semester 1',
+          generatedBy: 'Admin',
+          generatedAt: '2024-02-01T11:30:00',
+          reportType: 'PARTICIPANT',
+          format: 'EXCEL',
+          downloadUrl: '/reports/exam1-participant.xlsx',
+          status: 'READY'
+        }
+      ])
+    }
+  }
+
+  const generateReport = async () => {
+    if (!selectedExamForReport) {
+      alert('Pilih ujian terlebih dahulu')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/reports/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          examId: selectedExamForReport,
+          reportType,
+          format: reportFormat
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`Laporan sedang diproses. ID: ${data.reportId}`)
+        setShowGenerateReport(false)
+        fetchReports()
+      }
+    } catch (error) {
+      console.error('Error generating report:', error)
+      alert('Gagal menghasilkan laporan')
+    }
+  }
+
+  const downloadReport = async (reportId: string) => {
+    try {
+      const response = await fetch(`/api/admin/reports/${reportId}/download`, {
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('adminToken')}` }
+      })
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `report-${reportId}.${reportFormat.toLowerCase()}`
+        a.click()
+      }
+    } catch (error) {
+      console.error('Error downloading report:', error)
+      alert('Gagal mengunduh laporan')
+    }
+  }
+
+  // Settings Functions
   const updateSetting = async (key: keyof SystemSettings, value: boolean) => {
     try {
       const response = await fetch('/api/admin/settings', {
@@ -436,6 +1233,12 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken')
+    localStorage.removeItem('adminData')
+    router.push('/')
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -453,15 +1256,8 @@ export default function AdminDashboard() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            {/* <div className="bg-slate-900 text-white w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xl">
-              E
-            </div> */}
             <div className="w-12 h-12 rounded-xl shadow-lg shadow-blue-600/20 overflow-hidden">
-              <img
-                src="/Logo_Examo.png"
-                alt="ExamO Logo"
-                className="w-full h-full object-cover"
-              />
+              <img src="/Logo_Examo.png" alt="ExamO Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-slate-800">Examo Admin</h1>
@@ -511,35 +1307,27 @@ export default function AdminDashboard() {
               Manajemen Guru
             </Button>
             <Button
+              variant={activeTab === 'question-banks' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('question-banks')}
+            >
+              <BookOpen className="w-4 h-4 mr-2" />
+              Bank Soal
+            </Button>
+            <Button
               variant={activeTab === 'exams' ? 'default' : 'ghost'}
               className="w-full justify-start"
               onClick={() => setActiveTab('exams')}
             >
               <FileQuestion className="w-4 h-4 mr-2" />
-              Bank Soal & Ujian
-            </Button>
-            <Button
-              variant={activeTab === 'settings' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveTab('settings')}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Pengaturan Sistem
-            </Button>
-            <Button
-              variant={activeTab === 'reports' ? 'default' : 'ghost'}
-              className="w-full justify-start"
-              onClick={() => setActiveTab('reports')}
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Berita Acara
+              Manajemen Ujian
             </Button>
             <Button
               variant={activeTab === 'announcements' ? 'default' : 'ghost'}
               className="w-full justify-start"
               onClick={() => setActiveTab('announcements')}
             >
-              <MessageSquare className="w-4 h-4 mr-2" />
+              <Bell className="w-4 h-4 mr-2" />
               Pengumuman
             </Button>
             <Button
@@ -550,13 +1338,29 @@ export default function AdminDashboard() {
               <HelpCircle className="w-4 h-4 mr-2" />
               FAQ
             </Button>
+            <Button
+              variant={activeTab === 'reports' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('reports')}
+            >
+              <FileBarChart className="w-4 h-4 mr-2" />
+              Berita Acara
+            </Button>
+            <Button
+              variant={activeTab === 'settings' ? 'default' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('settings')}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Pengaturan Sistem
+            </Button>
           </nav>
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            {/* Overview Tab */}
+            {/* Overview Tab - Sama seperti sebelumnya */}
             <TabsContent value="overview" className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold text-slate-800 mb-2">Dashboard Overview</h2>
@@ -571,9 +1375,9 @@ export default function AdminDashboard() {
                     <Users className="h-4 w-4 text-blue-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalStudents}</div>
+                    <div className="text-2xl font-bold">{students.length}</div>
                     <p className="text-xs text-muted-foreground">
-                      {stats.suspendedStudents} suspended, {stats.alumniStudents} alumni
+                      {students.filter(s => s.user.status === 'SUSPENDED').length} suspended
                     </p>
                   </CardContent>
                 </Card>
@@ -584,7 +1388,7 @@ export default function AdminDashboard() {
                     <GraduationCap className="h-4 w-4 text-green-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalTeachers}</div>
+                    <div className="text-2xl font-bold">{teachers.length}</div>
                     <p className="text-xs text-muted-foreground">Pengajar aktif</p>
                   </CardContent>
                 </Card>
@@ -595,7 +1399,7 @@ export default function AdminDashboard() {
                     <BookOpen className="h-4 w-4 text-purple-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.totalQuestionBanks}</div>
+                    <div className="text-2xl font-bold">{questionBanks.length}</div>
                     <p className="text-xs text-muted-foreground">Koleksi soal</p>
                   </CardContent>
                 </Card>
@@ -606,8 +1410,44 @@ export default function AdminDashboard() {
                     <Clock className="h-4 w-4 text-orange-600" />
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{stats.activeExams}</div>
-                    <p className="text-xs text-muted-foreground">{stats.completedExams} selesai</p>
+                    <div className="text-2xl font-bold">{exams.filter(e => e.status === 'ONGOING').length}</div>
+                    <p className="text-xs text-muted-foreground">{exams.filter(e => e.status === 'COMPLETED').length} selesai</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Additional Stats */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Pengumuman</CardTitle>
+                    <Bell className="h-4 w-4 text-indigo-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{announcements.length}</div>
+                    <p className="text-xs text-muted-foreground">Pengumuman terpublikasi</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">FAQ</CardTitle>
+                    <HelpCircle className="h-4 w-4 text-amber-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{faqs.length}</div>
+                    <p className="text-xs text-muted-foreground">Pertanyaan umum</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Laporan</CardTitle>
+                    <FileBarChart className="h-4 w-4 text-emerald-600" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{reports.length}</div>
+                    <p className="text-xs text-muted-foreground">Berita acara tersedia</p>
                   </CardContent>
                 </Card>
               </div>
@@ -620,7 +1460,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('students')}>
                       <UserPlus className="w-6 h-6 mb-2 text-blue-600" />
                       <div className="text-left">
                         <div className="font-medium">Tambah Siswa</div>
@@ -628,160 +1468,48 @@ export default function AdminDashboard() {
                       </div>
                     </Button>
 
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
-                      <UserMinus className="w-6 h-6 mb-2 text-red-600" />
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('exams')}>
+                      <FileQuestion className="w-6 h-6 mb-2 text-purple-600" />
                       <div className="text-left">
-                        <div className="font-medium">Suspend Siswa</div>
-                        <div className="text-sm text-slate-500">Nonaktifkan akun</div>
+                        <div className="font-medium">Buat Ujian</div>
+                        <div className="text-sm text-slate-500">Buat ujian baru</div>
                       </div>
                     </Button>
 
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
-                      <Key className="w-6 h-6 mb-2 text-green-600" />
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('announcements')}>
+                      <BellRing className="w-6 h-6 mb-2 text-orange-600" />
                       <div className="text-left">
-                        <div className="font-medium">Reset Password</div>
-                        <div className="text-sm text-slate-500">Reset password siswa</div>
+                        <div className="font-medium">Buat Pengumuman</div>
+                        <div className="text-sm text-slate-500">Buat pengumuman baru</div>
                       </div>
                     </Button>
 
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
-                      <FileText className="w-6 h-6 mb-2 text-purple-600" />
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('reports')}>
+                      <FileBarChart className="w-6 h-6 mb-2 text-emerald-600" />
                       <div className="text-left">
-                        <div className="font-medium">Cetak Kartu Ujian</div>
-                        <div className="text-sm text-slate-500">Generate kartu ujian</div>
+                        <div className="font-medium">Generate Laporan</div>
+                        <div className="text-sm text-slate-500">Buat laporan ujian</div>
                       </div>
                     </Button>
 
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
-                      <RefreshCw className="w-6 h-6 mb-2 text-orange-600" />
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('question-banks')}>
+                      <BookOpen className="w-6 h-6 mb-2 text-indigo-600" />
                       <div className="text-left">
-                        <div className="font-medium">Acak Soal</div>
-                        <div className="text-sm text-slate-500">Randomize questions</div>
+                        <div className="font-medium">Tambah Bank Soal</div>
+                        <div className="text-sm text-slate-500">Buat bank soal baru</div>
                       </div>
                     </Button>
 
-                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start">
-                      <Video className="w-6 h-6 mb-2 text-red-600" />
+                    <Button variant="outline" className="h-auto p-4 flex flex-col items-start" onClick={() => setActiveTab('faq')}>
+                      <HelpCircle className="w-6 h-6 mb-2 text-amber-600" />
                       <div className="text-left">
-                        <div className="font-medium">YouTube Video</div>
-                        <div className="text-sm text-slate-500">Tambah video</div>
+                        <div className="font-medium">Kelola FAQ</div>
+                        <div className="text-sm text-slate-500">Tambah pertanyaan umum</div>
                       </div>
                     </Button>
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-
-            {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-6">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-800 mb-2">Pengaturan Sistem</h2>
-                <p className="text-slate-600">Konfigurasi fitur-fitur sistem Examo</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Exam Settings */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Pengaturan Ujian</CardTitle>
-                    <CardDescription>Konfigurasi perilaku ujian</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Acak Urutan Soal</div>
-                        <div className="text-sm text-slate-500">Randomize question order</div>
-                      </div>
-                      <Button
-                        variant={settings.randomizeQuestions ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('randomizeQuestions', !settings.randomizeQuestions)}
-                      >
-                        {settings.randomizeQuestions ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Acak Urutan Jawaban</div>
-                        <div className="text-sm text-slate-500">Randomize answer options</div>
-                      </div>
-                      <Button
-                        variant={settings.randomizeAnswers ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('randomizeAnswers', !settings.randomizeAnswers)}
-                      >
-                        {settings.randomizeAnswers ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Izinkan Multi Attempt</div>
-                        <div className="text-sm text-slate-500">Allow multiple exam attempts</div>
-                      </div>
-                      <Button
-                        variant={settings.allowMultipleAttempts ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('allowMultipleAttempts', !settings.allowMultipleAttempts)}
-                      >
-                        {settings.allowMultipleAttempts ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Security Settings */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Keamanan Ujian</CardTitle>
-                    <CardDescription>Pengaturan keamanan dan anti-kecurangan</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Mode Layar Penuh</div>
-                        <div className="text-sm text-slate-500">Force fullscreen mode</div>
-                      </div>
-                      <Button
-                        variant={settings.enableFullscreen ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('enableFullscreen', !settings.enableFullscreen)}
-                      >
-                        {settings.enableFullscreen ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Deteksi Pelanggaran</div>
-                        <div className="text-sm text-slate-500">Enable violation detection</div>
-                      </div>
-                      <Button
-                        variant={settings.enableViolations ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('enableViolations', !settings.enableViolations)}
-                      >
-                        {settings.enableViolations ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">Kartu Ujian</div>
-                        <div className="text-sm text-slate-500">Enable exam cards</div>
-                      </div>
-                      <Button
-                        variant={settings.enableExamCards ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => updateSetting('enableExamCards', !settings.enableExamCards)}
-                      >
-                        {settings.enableExamCards ? <Power className="w-4 h-4" /> : <PowerOff className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </TabsContent>
 
             {/* Students Management Tab */}
@@ -1022,7 +1750,7 @@ export default function AdminDashboard() {
                                 <Button size="sm" variant="outline" onClick={() => editTeacher(teacher)}>
                                   <Edit className="w-3 h-3" />
                                 </Button>
-                                <Button size="sm" variant="outline">
+                                <Button size="sm" variant="outline" onClick={() => deleteTeacher(teacher.id)}>
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
                               </div>
@@ -1036,60 +1764,128 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Question Banks Tab */}
+            {/* Question Banks Tab - Sama seperti sebelumnya */}
             <TabsContent value="question-banks" className="space-y-6">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-800 mb-2">Bank Soal</h2>
                   <p className="text-slate-600">Kelola bank soal dan kategori ujian</p>
                 </div>
-                <Button onClick={() => setShowAddQuestionBank(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Bank Soal Baru
-                </Button>
+                <div className="flex gap-3">
+                  <Button onClick={() => setShowAddQuestionBank(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Tambah Bank Soal
+                  </Button>
+                  <Button variant="outline" onClick={() => {/* Import question bank */}}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import
+                  </Button>
+                </div>
               </div>
+
+              {/* Filters */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Cari Bank Soal</Label>
+                      <Input
+                        placeholder="Cari judul, deskripsi, atau kategori..."
+                        value={questionBankSearch}
+                        onChange={(e) => setQuestionBankSearch(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Filter Status</Label>
+                      <Select value={questionBankFilter} onValueChange={setQuestionBankFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Semua Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Semua Status</SelectItem>
+                          <SelectItem value="active">Aktif</SelectItem>
+                          <SelectItem value="inactive">Nonaktif</SelectItem>
+                          <SelectItem value="public">Publik</SelectItem>
+                          <SelectItem value="private">Privat</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Urutkan</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Terbaru" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Terbaru</SelectItem>
+                          <SelectItem value="oldest">Terlama</SelectItem>
+                          <SelectItem value="most_questions">Paling Banyak Soal</SelectItem>
+                          <SelectItem value="title_asc">Judul A-Z</SelectItem>
+                          <SelectItem value="title_desc">Judul Z-A</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
               {/* Question Banks Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {questionBanks.map((bank) => (
+                {filteredQuestionBanks.map((bank) => (
                   <Card key={bank.id} className="hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
                           <CardTitle className="text-lg">{bank.title}</CardTitle>
-                          <CardDescription>{bank.description}</CardDescription>
+                          <CardDescription className="line-clamp-2">{bank.description}</CardDescription>
                         </div>
                         <div className="flex gap-2">
                           <Badge variant={bank.isActive ? "default" : "secondary"}>
                             {bank.isActive ? "Aktif" : "Nonaktif"}
                           </Badge>
-                          <Badge variant="outline">{bank.category}</Badge>
+                          {bank.accessType === 'PRIVATE' && <Lock className="w-4 h-4 text-slate-500" />}
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2 mb-4">
+                      <div className="space-y-3 mb-4">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-slate-500">Kategori:</span>
+                          <Badge variant="outline">{bank.category}</Badge>
+                        </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">Jumlah Soal:</span>
-                          <span>{bank.questionCount}</span>
+                          <span className="font-medium">{bank.questionCount}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">Kesulitan:</span>
-                          <span>{bank.difficulty}</span>
+                          <span className="font-medium">{bank.difficulty}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-500">Pembuat:</span>
                           <span>{bank.teacherName}</span>
                         </div>
+                        <div className="flex flex-wrap gap-1">
+                          {bank.tags.map((tag, index) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          <Eye className="w-4 h-4" />
+                        <Button size="sm" variant="outline" className="flex-1">
+                          <Eye className="w-4 h-4 mr-2" />
+                          Lihat
                         </Button>
-                        <Button size="sm" variant="outline">
-                          <Edit className="w-4 h-4" />
+                        <Button size="sm" variant="outline" onClick={() => {
+                          setEditingQuestionBank(bank)
+                          setShowAddQuestionBank(true)
+                        }}>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Edit
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => deleteQuestionBank(bank.id)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1099,38 +1895,660 @@ export default function AdminDashboard() {
               </div>
             </TabsContent>
 
-            <TabsContent value="reports">
-              <div className="text-center py-12">
-                <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">Berita Acara</h3>
-                <p className="text-slate-500">Fitur berita acara ujian akan segera tersedia</p>
+            {/* Exams Tab - Sama seperti sebelumnya */}
+            <TabsContent value="exams" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Manajemen Ujian</h2>
+                  <p className="text-slate-600">Kelola jadwal, peserta, dan pengaturan ujian</p>
+                </div>
+                <div className="flex gap-3">
+                  <Button onClick={() => setShowAddExam(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Buat Ujian
+                  </Button>
+                  <Button variant="outline" onClick={() => {/* Bulk actions */}}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Data
+                  </Button>
+                </div>
+              </div>
+
+              {/* Filters */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <Label>Cari Ujian</Label>
+                      <Input
+                        placeholder="Cari judul atau deskripsi..."
+                        value={examSearch}
+                        onChange={(e) => setExamSearch(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Status</Label>
+                      <Select value={examFilter} onValueChange={setExamFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Semua Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Semua Status</SelectItem>
+                          <SelectItem value="DRAFT">Draft</SelectItem>
+                          <SelectItem value="SCHEDULED">Terjadwal</SelectItem>
+                          <SelectItem value="ONGOING">Berlangsung</SelectItem>
+                          <SelectItem value="COMPLETED">Selesai</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Tanggal Mulai</Label>
+                      <Input type="date" />
+                    </div>
+                    <div>
+                      <Label>Durasi</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Semua Durasi" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Semua</SelectItem>
+                          <SelectItem value="30">≤ 30 menit</SelectItem>
+                          <SelectItem value="60">≤ 60 menit</SelectItem>
+                          <SelectItem value="120">≤ 120 menit</SelectItem>
+                          <SelectItem value="120+"> 120 menit</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Exams Table */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b">
+                        <tr>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Judul Ujian</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Bank Soal</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Jadwal</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Durasi</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Peserta</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredExams.map((exam) => (
+                          <tr key={exam.id} className="border-b hover:bg-slate-50">
+                            <td className="p-4">
+                              <div>
+                                <div className="font-medium">{exam.title}</div>
+                                <div className="text-sm text-slate-500">{exam.description}</div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">{exam.questionBankTitle}</div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">
+                                <div>{new Date(exam.startDate).toLocaleDateString()}</div>
+                                <div className="text-slate-500">
+                                  {new Date(exam.startDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">{exam.duration} menit</div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={
+                                exam.status === 'ONGOING' ? 'default' :
+                                exam.status === 'SCHEDULED' ? 'secondary' :
+                                exam.status === 'COMPLETED' ? 'outline' : 'destructive'
+                              }>
+                                {exam.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">
+                                {exam.completedParticipants}/{exam.totalParticipants}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex gap-2">
+                                <Button size="sm" variant="outline">
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => {
+                                  setEditingExam(exam)
+                                  setShowAddExam(true)
+                                }}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => toggleExamPublish(exam.id, !exam.isPublished)}
+                                >
+                                  {exam.isPublished ? <EyeOff className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Announcements Tab - Sama seperti sebelumnya */}
+            <TabsContent value="announcements" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Pengumuman</h2>
+                  <p className="text-slate-600">Kelola pengumuman untuk siswa dan guru</p>
+                </div>
+                <Button onClick={() => setShowAddAnnouncement(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Buat Pengumuman
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <div className="flex gap-4">
+                <Select value={announcementFilter} onValueChange={setAnnouncementFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status Pengumuman" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Semua</SelectItem>
+                    <SelectItem value="published">Terpublikasi</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="urgent">Penting</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input placeholder="Cari pengumuman..." className="flex-1" />
+              </div>
+
+              {/* Announcements List */}
+              <div className="space-y-4">
+                {filteredAnnouncements.map((announcement) => (
+                  <Card key={announcement.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {announcement.title}
+                            {announcement.priority === 'URGENT' && (
+                              <Badge variant="destructive">URGENT</Badge>
+                            )}
+                            {announcement.priority === 'HIGH' && (
+                              <Badge variant="outline" className="bg-red-50 text-red-700">PENTING</Badge>
+                            )}
+                          </CardTitle>
+                          <CardDescription>
+                            Diposting: {new Date(announcement.createdAt).toLocaleDateString()} • 
+                            Berlaku hingga: {new Date(announcement.expiryDate).toLocaleDateString()}
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant={announcement.isPublished ? "default" : "secondary"}>
+                            {announcement.isPublished ? "Terpublikasi" : "Draft"}
+                          </Badge>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingAnnouncement(announcement)
+                            setShowAddAnnouncement(true)
+                          }}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => deleteAnnouncement(announcement.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="prose max-w-none">
+                        <p>{announcement.content}</p>
+                      </div>
+                      {announcement.attachments && announcement.attachments.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-sm font-medium mb-2">Lampiran:</p>
+                          <div className="flex flex-wrap gap-2">
+                            {announcement.attachments.map((attachment, index) => (
+                              <Badge key={index} variant="outline" className="cursor-pointer hover:bg-slate-100">
+                                <FileText className="w-3 h-3 mr-1" />
+                                {attachment}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
 
-            <TabsContent value="announcements">
-              <div className="text-center py-12">
-                <MessageSquare className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">Pengumuman</h3>
-                <p className="text-slate-500">Fitur pengumuman akan segera tersedia</p>
+            {/* FAQ Tab - Sama seperti sebelumnya */}
+            <TabsContent value="faq" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">FAQ (Pertanyaan Umum)</h2>
+                  <p className="text-slate-600">Kelola pertanyaan dan jawaban yang sering ditanyakan</p>
+                </div>
+                <Button onClick={() => setShowAddFAQ(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Tambah FAQ
+                </Button>
+              </div>
+
+              {/* Filters */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label>Cari FAQ</Label>
+                      <Input
+                        placeholder="Cari pertanyaan atau jawaban..."
+                        value={faqSearch}
+                        onChange={(e) => setFaqSearch(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label>Kategori</Label>
+                      <Select>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Semua Kategori" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Semua Kategori</SelectItem>
+                          <SelectItem value="general">Umum</SelectItem>
+                          <SelectItem value="technical">Teknis</SelectItem>
+                          <SelectItem value="account">Akun</SelectItem>
+                          <SelectItem value="exam">Ujian</SelectItem>
+                          <SelectItem value="payment">Pembayaran</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Status</Label>
+                      <Select value={faqFilter} onValueChange={setFaqFilter}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Semua Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Semua</SelectItem>
+                          <SelectItem value="published">Terpublikasi</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* FAQ List */}
+              <div className="space-y-4">
+                {filteredFAQs.map((faq) => (
+                  <Card key={faq.id}>
+                    <CardHeader>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {faq.question}
+                            <Badge variant="outline">{faq.category}</Badge>
+                          </CardTitle>
+                          <CardDescription>
+                            Dilihat: {faq.views} kali • Bermanfaat: {faq.helpful}
+                          </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                          <Badge variant={faq.isPublished ? "default" : "secondary"}>
+                            {faq.isPublished ? "Terpublikasi" : "Draft"}
+                          </Badge>
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingFAQ(faq)
+                            setShowAddFAQ(true)
+                          }}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => deleteFAQ(faq.id)}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="prose max-w-none">
+                        <p>{faq.answer}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </TabsContent>
 
-            <TabsContent value="faq">
-              <div className="text-center py-12">
-                <HelpCircle className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-slate-600 mb-2">FAQ</h3>
-                <p className="text-slate-500">Fitur FAQ akan segera tersedia</p>
+            {/* Reports Tab - Sama seperti sebelumnya */}
+            <TabsContent value="reports" className="space-y-6">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-800 mb-2">Berita Acara & Laporan</h2>
+                  <p className="text-slate-600">Generate dan kelola laporan hasil ujian</p>
+                </div>
+                <Button onClick={() => setShowGenerateReport(true)}>
+                  <FileBarChart className="w-4 h-4 mr-2" />
+                  Generate Laporan
+                </Button>
               </div>
+
+              {/* Report Generation Form */}
+              {showGenerateReport && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Generate Laporan Baru</CardTitle>
+                    <CardDescription>Pilih ujian dan jenis laporan yang ingin dibuat</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Pilih Ujian</Label>
+                        <Select value={selectedExamForReport} onValueChange={setSelectedExamForReport}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih ujian" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {exams.filter(e => e.status === 'COMPLETED').map(exam => (
+                              <SelectItem key={exam.id} value={exam.id}>
+                                {exam.title} ({new Date(exam.startDate).toLocaleDateString()})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Jenis Laporan</Label>
+                        <Select value={reportType} onValueChange={(value: any) => setReportType(value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih jenis laporan" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PARTICIPANT">Laporan Peserta</SelectItem>
+                            <SelectItem value="PERFORMANCE">Laporan Performa</SelectItem>
+                            <SelectItem value="VIOLATION">Laporan Pelanggaran</SelectItem>
+                            <SelectItem value="COMPREHENSIVE">Laporan Komprehensif</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Format</Label>
+                        <Select value={reportFormat} onValueChange={(value: any) => setReportFormat(value)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih format" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PDF">PDF</SelectItem>
+                            <SelectItem value="EXCEL">Excel</SelectItem>
+                            <SelectItem value="CSV">CSV</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={() => setShowGenerateReport(false)}>
+                        Batal
+                      </Button>
+                      <Button onClick={generateReport}>
+                        Generate Laporan
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Reports List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daftar Laporan</CardTitle>
+                  <CardDescription>Laporan yang telah digenerate sebelumnya</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-slate-50 border-b">
+                        <tr>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Ujian</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Jenis Laporan</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Format</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Tanggal Generate</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Status</th>
+                          <th className="p-4 text-left text-xs font-medium text-slate-500 uppercase">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {reports.map((report) => (
+                          <tr key={report.id} className="border-b hover:bg-slate-50">
+                            <td className="p-4">
+                              <div className="font-medium">{report.examTitle}</div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="outline">{report.reportType}</Badge>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant="secondary">{report.format}</Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="text-sm">
+                                {new Date(report.generatedAt).toLocaleDateString()}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <Badge variant={
+                                report.status === 'READY' ? 'default' :
+                                report.status === 'GENERATING' ? 'secondary' : 'destructive'
+                              }>
+                                {report.status}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => downloadReport(report.id)}
+                                disabled={report.status !== 'READY'}
+                              >
+                                <Download className="w-4 h-4 mr-2" />
+                                Download
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Settings Tab - Sama seperti sebelumnya */}
+            <TabsContent value="settings" className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-800 mb-2">Pengaturan Sistem</h2>
+                <p className="text-slate-600">Konfigurasi fitur-fitur sistem Examo</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Exam Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pengaturan Ujian</CardTitle>
+                    <CardDescription>Konfigurasi perilaku ujian</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Acak Urutan Soal</div>
+                        <div className="text-sm text-slate-500">Randomize question order</div>
+                      </div>
+                      <Switch
+                        checked={settings.randomizeQuestions}
+                        onCheckedChange={(checked) => updateSetting('randomizeQuestions', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Acak Urutan Jawaban</div>
+                        <div className="text-sm text-slate-500">Randomize answer options</div>
+                      </div>
+                      <Switch
+                        checked={settings.randomizeAnswers}
+                        onCheckedChange={(checked) => updateSetting('randomizeAnswers', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Izinkan Multi Attempt</div>
+                        <div className="text-sm text-slate-500">Allow multiple exam attempts</div>
+                      </div>
+                      <Switch
+                        checked={settings.allowMultipleAttempts}
+                        onCheckedChange={(checked) => updateSetting('allowMultipleAttempts', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Tampilkan Hasil Segera</div>
+                        <div className="text-sm text-slate-500">Show results immediately after submission</div>
+                      </div>
+                      <Switch
+                        checked={settings.showResultsImmediately}
+                        onCheckedChange={(checked) => updateSetting('showResultsImmediately', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Izinkan Review Soal</div>
+                        <div className="text-sm text-slate-500">Allow question review after exam</div>
+                      </div>
+                      <Switch
+                        checked={settings.allowQuestionReview}
+                        onCheckedChange={(checked) => updateSetting('allowQuestionReview', checked)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Security Settings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Keamanan Ujian</CardTitle>
+                    <CardDescription>Pengaturan keamanan dan anti-kecurangan</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Mode Layar Penuh</div>
+                        <div className="text-sm text-slate-500">Force fullscreen mode</div>
+                      </div>
+                      <Switch
+                        checked={settings.enableFullscreen}
+                        onCheckedChange={(checked) => updateSetting('enableFullscreen', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Deteksi Pelanggaran</div>
+                        <div className="text-sm text-slate-500">Enable violation detection</div>
+                      </div>
+                      <Switch
+                        checked={settings.enableViolations}
+                        onCheckedChange={(checked) => updateSetting('enableViolations', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Kartu Ujian</div>
+                        <div className="text-sm text-slate-500">Enable exam cards</div>
+                      </div>
+                      <Switch
+                        checked={settings.enableExamCards}
+                        onCheckedChange={(checked) => updateSetting('enableExamCards', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Proctoring</div>
+                        <div className="text-sm text-slate-500">Enable webcam proctoring</div>
+                      </div>
+                      <Switch
+                        checked={settings.enableProctoring}
+                        onCheckedChange={(checked) => updateSetting('enableProctoring', checked)}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-medium">Batas Waktu Ketat</div>
+                        <div className="text-sm text-slate-500">Strict time limit enforcement</div>
+                      </div>
+                      <Switch
+                        checked={settings.timeLimitStrict}
+                        onCheckedChange={(checked) => updateSetting('timeLimitStrict', checked)}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* System Maintenance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pemeliharaan Sistem</CardTitle>
+                  <CardDescription>Aksi administratif untuk sistem</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Button variant="outline" className="justify-start">
+                      <Archive className="w-4 h-4 mr-2" />
+                      Backup Database
+                    </Button>
+                    <Button variant="outline" className="justify-start">
+                      <History className="w-4 h-4 mr-2" />
+                      Riwayat Sistem
+                    </Button>
+                    <Button variant="outline" className="justify-start">
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Reset Cache
+                    </Button>
+                    <Button variant="outline" className="justify-start text-red-600">
+                      <AlertTriangle className="w-4 h-4 mr-2" />
+                      Mode Pemeliharaan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
+
+          {/* Modals */}
           {/* Add/Edit Student Modal */}
           {showAddStudent && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <CardHeader>
-                  <CardTitle>
-                    {editingStudent ? 'Edit Siswa' : 'Tambah Siswa Baru'}
-                  </CardTitle>
+                  <CardTitle>{editingStudent ? 'Edit Siswa' : 'Tambah Siswa Baru'}</CardTitle>
                   <CardDescription>
                     {editingStudent ? 'Edit data siswa yang ada' : 'Tambah siswa baru ke sistem'}
                   </CardDescription>
@@ -1215,35 +2633,55 @@ export default function AdminDashboard() {
 
           {/* Add Teacher Modal */}
           {showAddTeacher && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
               <Card className="w-full max-w-md">
                 <CardHeader>
-                  <CardTitle>Tambah Guru Baru</CardTitle>
-                  <CardDescription>Tambah guru baru ke sistem</CardDescription>
+                  <CardTitle>{editingTeacher ? 'Edit Guru' : 'Tambah Guru Baru'}</CardTitle>
+                  <CardDescription>{editingTeacher ? 'Edit data guru yang ada' : 'Tambah guru baru ke sistem'}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Nama Lengkap</Label>
-                    <Input placeholder="Masukkan nama lengkap" />
+                    <Input 
+                      defaultValue={editingTeacher?.user.name || ''}
+                      placeholder="Masukkan nama lengkap" 
+                    />
                   </div>
                   <div>
                     <Label>Email</Label>
-                    <Input type="email" placeholder="email@example.com" />
+                    <Input 
+                      type="email" 
+                      defaultValue={editingTeacher?.user.email || ''}
+                      placeholder="email@example.com" 
+                    />
                   </div>
                   <div>
                     <Label>NIP (Opsional)</Label>
-                    <Input placeholder="Masukkan NIP" />
+                    <Input 
+                      defaultValue={editingTeacher?.nip || ''}
+                      placeholder="Masukkan NIP" 
+                    />
                   </div>
                   <div>
                     <Label>Departemen</Label>
-                    <Input placeholder="Contoh: Matematika" />
+                    <Input 
+                      defaultValue={editingTeacher?.department || ''}
+                      placeholder="Contoh: Matematika" 
+                    />
                   </div>
                   <div>
                     <Label>Password</Label>
-                    <Input type="password" placeholder="Masukkan password" />
+                    <Input 
+                      type="password" 
+                      defaultValue={editingTeacher ? '•••••••' : ''}
+                      placeholder={editingTeacher ? 'Kosongkan untuk tidak mengubah' : 'Masukkan password'} 
+                    />
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setShowAddTeacher(false)}>
+                    <Button variant="outline" onClick={() => {
+                      setShowAddTeacher(false)
+                      setEditingTeacher(null)
+                    }}>
                       Batal
                     </Button>
                     <Button onClick={() => {
@@ -1254,91 +2692,13 @@ export default function AdminDashboard() {
                         department: document.querySelector('input[placeholder="Contoh: Matematika"]')?.value,
                         password: document.querySelector('input[type="password"]')?.value
                       }
-                      addTeacher(formData)
-                    }}>
-                      Tambah Guru
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Add Question Bank Modal */}
-          {showAddQuestionBank && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <Card className="w-full max-w-md">
-                <CardHeader>
-                  <CardTitle>Tambah Bank Soal Baru</CardTitle>
-                  <CardDescription>Buat bank soal baru untuk ujian</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label>Judul Bank Soal</Label>
-                    <Input placeholder="Masukkan judul bank soal" />
-                  </div>
-                  <div>
-                    <Label>Deskripsi</Label>
-                    <Textarea placeholder="Deskripsi bank soal (opsional)" />
-                  </div>
-                  <div>
-                    <Label>Kategori</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih kategori" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="REGULAR">Regular</SelectItem>
-                        <SelectItem value="TRYOUT_UTBK">Tryout UTBK</SelectItem>
-                        <SelectItem value="TRYOUT_SNMPTN">Tryout SNMPTN</SelectItem>
-                        <SelectItem value="CPNS">CPNS</SelectItem>
-                        <SelectItem value="CUSTOM">Custom</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Tingkat Kesulitan</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih tingkat kesulitan" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="EASY">Mudah</SelectItem>
-                        <SelectItem value="MEDIUM">Sedang</SelectItem>
-                        <SelectItem value="HARD">Sulit</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label>Assign ke Guru</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pilih guru" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {teachers.map(teacher => (
-                          <SelectItem key={teacher.id} value={teacher.id}>
-                            {teacher.user.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setShowAddQuestionBank(false)}>
-                      Batal
-                    </Button>
-                    <Button onClick={() => {
-                      const formData = {
-                        title: document.querySelector('input[placeholder="Masukkan judul bank soal"]')?.value,
-                        description: document.querySelector('textarea')?.value,
-                        category: document.querySelector('[role="combobox"]')?.textContent,
-                        difficulty: document.querySelector('[role="combobox"]:nth-child(2)')?.textContent,
-                        teacherId: document.querySelector('[role="combobox"]:nth-child(3)')?.textContent
+                      if (editingTeacher) {
+                        updateTeacher(editingTeacher.id, formData)
+                      } else {
+                        addTeacher(formData)
                       }
-                      addQuestionBank(formData)
                     }}>
-                      Tambah Bank Soal
+                      {editingTeacher ? 'Update Guru' : 'Tambah Guru'}
                     </Button>
                   </div>
                 </CardContent>

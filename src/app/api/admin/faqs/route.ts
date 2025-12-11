@@ -1,69 +1,143 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { verifyToken } from '@/lib/auth'
+import { PrismaClient } from '@prisma/client'
 
+const prisma = new PrismaClient()
+
+// Helper untuk autentikasi admin
+async function authenticateAdmin(request: NextRequest) {
+  const token = request.headers.get('authorization')?.replace('Bearer ', '')
+  
+  if (!token) {
+    return { error: 'Unauthorized', status: 401 }
+  }
+
+  try {
+    const admin = await prisma.admin.findUnique({
+      where: { token }
+    })
+
+    if (!admin) {
+      return { error: 'Invalid token', status: 401 }
+    }
+
+    return { admin, error: null }
+  } catch (error) {
+    console.error('Authentication error:', error)
+    return { error: 'Authentication failed', status: 500 }
+  }
+}
+
+// GET: Mendapatkan semua FAQ
 export async function GET(request: NextRequest) {
   try {
-    const authUser = verifyToken(request)
-    if (!authUser || authUser.role !== 'ADMIN') {
+    const auth = await authenticateAdmin(request)
+    if (auth.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: auth.error },
+        { status: auth.status || 401 }
       )
     }
 
-    const faqs = await db.fAQ.findMany({
-      orderBy: {
-        order: 'asc'
-      }
+    const { searchParams } = new URL(request.url)
+    const category = searchParams.get('category')
+    const status = searchParams.get('status')
+    const search = searchParams.get('search')
+
+    let whereClause: any = {}
+
+    if (category && category !== 'all') {
+      whereClause.category = category
+    }
+
+    if (status === 'published') {
+      whereClause.isPublished = true
+    } else if (status === 'draft') {
+      whereClause.isPublished = false
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { question: { contains: search, mode: 'insensitive' } },
+        { answer: { contains: search, mode: 'insensitive' } },
+        { category: { contains: search, mode: 'insensitive' } }
+      ]
+    }
+
+    const faqs = await prisma.faq.findMany({
+      where: whereClause,
+      orderBy: [
+        { order: 'asc' },
+        { createdAt: 'desc' }
+      ]
     })
 
     return NextResponse.json(faqs)
-
   } catch (error) {
-    console.error('Get FAQs error:', error)
+    console.error('Error fetching FAQs:', error)
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
 
+// POST: Membuat FAQ baru
 export async function POST(request: NextRequest) {
   try {
-    const authUser = verifyToken(request)
-    if (!authUser || authUser.role !== 'ADMIN') {
+    const auth = await authenticateAdmin(request)
+    if (auth.error) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: auth.error },
+        { status: auth.status || 401 }
       )
     }
 
-    const { question, answer, category, order } = await request.json()
+    const body = await request.json()
+    const { question, answer, category, order, isPublished } = body
 
-    if (!question || !answer) {
+    // Validasi input
+    if (!question || !answer || !category) {
       return NextResponse.json(
-        { error: 'Question and answer are required' },
+        { error: 'Question, answer, and category are required' },
         { status: 400 }
       )
     }
 
-    // Create FAQ
-    const faq = await db.fAQ.create({
+    // Cari order terakhir jika tidak disediakan
+    let finalOrder = order
+    if (!order) {
+      const lastFaq = await prisma.faq.findFirst({
+        where: { category },
+        orderBy: { order: 'desc' }
+      })
+      finalOrder = lastFaq ? lastFaq.order + 1 : 1
+    }
+
+    // Buat FAQ
+    const faq = await prisma.faq.create({
       data: {
         question,
         answer,
-        category: category || 'General',
-        order: order || 0
+        category,
+        order: finalOrder,
+        isPublished: isPublished || false,
+        views: 0,
+        helpful: 0,
+        notHelpful: 0
       }
     })
 
-    return NextResponse.json(faq, { status: 201 })
-
-  } catch (error) {
-    console.error('Create FAQ error:', error)
     return NextResponse.json(
-      { error: 'Terjadi kesalahan server' },
+      {
+        message: 'FAQ created successfully',
+        faq
+      },
+      { status: 201 }
+    )
+  } catch (error) {
+    console.error('Error creating FAQ:', error)
+    return NextResponse.json(
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

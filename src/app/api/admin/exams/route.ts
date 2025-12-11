@@ -6,13 +6,12 @@ const prisma = new PrismaClient()
 // Helper untuk autentikasi admin
 async function authenticateAdmin(request: NextRequest) {
   const token = request.headers.get('authorization')?.replace('Bearer ', '')
-
+  
   if (!token) {
     return { error: 'Unauthorized', status: 401 }
   }
 
   try {
-    // Verifikasi token admin (sesuaikan dengan sistem autentikasi Anda)
     const admin = await prisma.admin.findUnique({
       where: { token }
     })
@@ -28,7 +27,7 @@ async function authenticateAdmin(request: NextRequest) {
   }
 }
 
-// GET: Mendapatkan semua bank soal
+// GET: Mendapatkan semua ujian
 export async function GET(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request)
@@ -41,37 +40,44 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    const category = searchParams.get('category')
     const teacherId = searchParams.get('teacherId')
+    const startDate = searchParams.get('startDate')
+    const endDate = searchParams.get('endDate')
 
     let whereClause: any = {}
 
     if (status && status !== 'all') {
-      if (status === 'active') {
-        whereClause.isActive = true
-      } else if (status === 'inactive') {
-        whereClause.isActive = false
-      } else if (status === 'public') {
-        whereClause.accessType = 'PUBLIC'
-      } else if (status === 'private') {
-        whereClause.accessType = 'PRIVATE'
-      }
-    }
-
-    if (category && category !== 'all') {
-      whereClause.category = category
+      whereClause.status = status
     }
 
     if (teacherId && teacherId !== 'all') {
       whereClause.teacherId = teacherId
     }
 
-    const questionBanks = await prisma.questionBank.findMany({
+    if (startDate) {
+      whereClause.startDate = {
+        gte: new Date(startDate)
+      }
+    }
+
+    if (endDate) {
+      whereClause.endDate = {
+        lte: new Date(endDate)
+      }
+    }
+
+    const exams = await prisma.exam.findMany({
       where: whereClause,
       include: {
-        teacher: {
+        questionBank: {
           select: {
             id: true,
+            title: true,
+            description: true
+          }
+        },
+        teacher: {
+          select: {
             user: {
               select: {
                 name: true,
@@ -82,7 +88,8 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           select: {
-            questions: true
+            participants: true,
+            examResults: true
           }
         }
       },
@@ -92,26 +99,28 @@ export async function GET(request: NextRequest) {
     })
 
     // Format response
-    const formattedBanks = questionBanks.map(bank => ({
-      id: bank.id,
-      title: bank.title,
-      description: bank.description,
-      category: bank.category,
-      subject: bank.subject,
-      difficulty: bank.difficulty,
-      questionCount: bank._count.questions,
-      teacherName: bank.teacher?.user?.name || 'Unknown',
-      teacherId: bank.teacherId,
-      isActive: bank.isActive,
-      createdAt: bank.createdAt.toISOString(),
-      updatedAt: bank.updatedAt.toISOString(),
-      tags: bank.tags,
-      accessType: bank.accessType
+    const formattedExams = exams.map(exam => ({
+      id: exam.id,
+      title: exam.title,
+      description: exam.description,
+      questionBankId: exam.questionBankId,
+      questionBankTitle: exam.questionBank?.title || 'Unknown',
+      duration: exam.duration,
+      startDate: exam.startDate.toISOString(),
+      endDate: exam.endDate.toISOString(),
+      status: exam.status,
+      totalParticipants: exam._count.participants,
+      completedParticipants: exam._count.examResults,
+      passingGrade: exam.passingGrade,
+      isPublished: exam.isPublished,
+      accessCode: exam.accessCode,
+      createdBy: exam.teacher?.user?.name || 'Unknown',
+      createdAt: exam.createdAt.toISOString()
     }))
 
-    return NextResponse.json(formattedBanks)
+    return NextResponse.json(formattedExams)
   } catch (error) {
-    console.error('Error fetching question banks:', error)
+    console.error('Error fetching exams:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -119,7 +128,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Membuat bank soal baru
+// POST: Membuat ujian baru
 export async function POST(request: NextRequest) {
   try {
     const auth = await authenticateAdmin(request)
@@ -131,13 +140,35 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, category, subject, difficulty, teacherId, tags, accessType } = body
+    const {
+      title,
+      description,
+      questionBankId,
+      duration,
+      startDate,
+      endDate,
+      passingGrade,
+      teacherId,
+      settings
+    } = body
 
     // Validasi input
-    if (!title || !category || !teacherId) {
+    if (!title || !questionBankId || !duration || !startDate || !endDate || !teacherId) {
       return NextResponse.json(
-        { error: 'Title, category, and teacherId are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
+      )
+    }
+
+    // Cek apakah bank soal ada
+    const questionBank = await prisma.questionBank.findUnique({
+      where: { id: questionBankId }
+    })
+
+    if (!questionBank) {
+      return NextResponse.json(
+        { error: 'Question bank not found' },
+        { status: 404 }
       )
     }
 
@@ -153,30 +184,37 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Buat bank soal
-    const questionBank = await prisma.questionBank.create({
+    // Generate access code
+    const accessCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+
+    // Buat ujian
+    const exam = await prisma.exam.create({
       data: {
         title,
         description: description || '',
-        category,
-        subject: subject || '',
-        difficulty: difficulty || 'MEDIUM',
+        questionBankId,
+        duration: parseInt(duration),
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        passingGrade: passingGrade || 70,
         teacherId,
-        tags: tags || [],
-        accessType: accessType || 'PRIVATE',
-        isActive: true
+        accessCode,
+        isPublished: false,
+        status: 'DRAFT',
+        settings: settings || {}
       }
     })
 
     return NextResponse.json(
       {
-        message: 'Question bank created successfully',
-        questionBank
+        message: 'Exam created successfully',
+        exam,
+        accessCode
       },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Error creating question bank:', error)
+    console.error('Error creating exam:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
