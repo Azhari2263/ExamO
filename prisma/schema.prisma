@@ -3,10 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"  // Ganti dari "postgresql" ke "sqlite"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
+// ==================== USER MANAGEMENT ====================
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -19,251 +20,260 @@ model User {
   emailVerified Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-  
-  student       Student?
-  teacher       Teacher?
-  admin         Admin?
+
+  student      Student?
+  teacher      Teacher?
+  adminProfile Admin?
 }
 
 model Student {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nim       String   @unique
-  class     String
-  grade     String?
-  major     String?
-  phone     String?
-  address   String?
-  
-  // Relations
-  examParticipants ExamParticipant[]
-  examResults      ExamResult[]
-  violations       Violation[]
-  
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nim     String  @unique
+  class   String
+  grade   String?
+  major   String?
+  phone   String?
+  address String?
+
+  examAttempts ExamAttempt[]
+  examResults  ExamResult[]
+  examAnswers  ExamAnswer[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Teacher {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nip        String?  @unique
-  department String?
-  expertise  String[]
-  
-  // Relations
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nip         String? @unique
+  department  String?
+  permissions String  @default("[]") // JSON string
+
   questionBanks QuestionBank[]
-  exams         Exam[]
-  
+  examRooms     ExamRoom[]
+  announcements Announcement[] // TAMBAHKAN INI
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Admin {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role            String   @default("ADMIN")
-  permissions     String[]
-  token           String?  @unique
-  lastLogin       DateTime?
-  
-  // Relations
-  announcements Announcement[]
+  id          String @id @default(cuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permissions String @default("[]") // JSON string
+
   examReports   ExamReport[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  announcements Announcement[] // TAMBAHKAN INI
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
+// ==================== QUESTION BANK ====================
 model QuestionBank {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?
-  category        String    // REGULAR, TRYOUT_UTBK, TRYOUT_SNMPTN, CPNS, CUSTOM
-  subject         String?
-  difficulty      String    @default("MEDIUM") // EASY, MEDIUM, HARD
-  teacherId       String
-  teacher         Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  tags            String[]
-  accessType      String    @default("PRIVATE") // PUBLIC, PRIVATE, RESTRICTED
-  isActive        Boolean   @default(true)
-  
-  // Relations
-  questions       Question[]
-  exams           Exam[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  category    String  @default("REGULAR") // REGULAR, TRYOUT_UTBK, TRYOUT_SNMPTN, CPNS, CUSTOM
+  difficulty  String  @default("MEDIUM") // EASY, MEDIUM, HARD
+  teacherId   String
+  teacher     Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  isActive    Boolean @default(true)
+  isPublic    Boolean @default(false)
+
+  questions Question[]
+  examRooms ExamRoom[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Question {
-  id              String   @id @default(cuid())
-  questionBankId  String
-  questionBank    QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
-  text            String
-  type            String   @default("MULTIPLE_CHOICE") // MULTIPLE_CHOICE, ESSAY, TRUE_FALSE
-  difficulty      String   @default("MEDIUM")
-  points          Int      @default(1)
-  imageUrl        String?
-  explanation     String?
-  
-  // Relations
-  answers         Answer[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
+  id             String       @id @default(cuid())
+  questionBankId String
+  questionBank   QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Cascade)
+  type           String       @default("MULTIPLE_CHOICE") // MULTIPLE_CHOICE, ESSAY, TRUE_FALSE
+  question       String
+  options        String       @default("[]") // JSON string array
+  correctAnswer  String
+  explanation    String?
+  points         Int          @default(1)
+  order          Int          @default(0)
 
-model Answer {
-  id         String   @id @default(cuid())
-  questionId String
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  text       String
-  isCorrect  Boolean  @default(false)
-  order      Int
-  
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-}
+  examQuestions ExamQuestion[]
+  examAnswers   ExamAnswer[]
 
-model Exam {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?
-  questionBankId  String
-  questionBank    QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Restrict)
-  duration        Int       // dalam menit
-  startDate       DateTime
-  endDate         DateTime
-  status          String    @default("DRAFT") // DRAFT, SCHEDULED, ONGOING, COMPLETED, CANCELLED
-  passingGrade    Int       @default(70)
-  teacherId       String
-  teacher         Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  accessCode      String    @unique
-  isPublished     Boolean   @default(false)
-  settings        Json      @default("{}")
-  
-  // Relations
-  participants    ExamParticipant[]
-  examResults     ExamResult[]
-  violations      Violation[]
-  reports         ExamReport[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-}
-
-model ExamParticipant {
-  id        String   @id @default(cuid())
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  status    String   @default("REGISTERED") // REGISTERED, ATTENDED, ABSENT
-  joinedAt  DateTime?
-  leftAt    DateTime?
-  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
 
-  @@unique([examId, studentId])
+// ==================== EXAM ROOM ====================
+model ExamRoom {
+  id               String       @id @default(cuid())
+  title            String
+  description      String?
+  questionBankId   String
+  questionBank     QuestionBank @relation(fields: [questionBankId], references: [id], onDelete: Restrict)
+  teacherId        String
+  teacher          Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classCode        String?
+  accessType       String       @default("ALL") // ALL, CLASS_RESTRICTED, STUDENT_RESTRICTED
+  allowedStudents  String       @default("[]") // JSON string array
+  allowedClasses   String       @default("[]") // JSON string array
+  maxQuestions     Int?
+  duration         Int          @default(60) // minutes
+  attemptType      String       @default("SINGLE") // SINGLE, UNLIMITED, LIMITED
+  randomizeOrder   Boolean      @default(false)
+  randomizeAnswers Boolean      @default(false)
+  isActive         Boolean      @default(true)
+  scheduledStart   DateTime?
+  scheduledEnd     DateTime?
+
+  examAttempts  ExamAttempt[]
+  examQuestions ExamQuestion[]
+  examResults   ExamResult[]
+  examReports   ExamReport[]
+  announcements Announcement[] // TAMBAHKAN INI
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExamQuestion {
+  id         String   @id @default(cuid())
+  examRoomId String
+  examRoom   ExamRoom @relation(fields: [examRoomId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([examRoomId, questionId])
+}
+
+model ExamAttempt {
+  id         String    @id @default(cuid())
+  examRoomId String
+  examRoom   ExamRoom  @relation(fields: [examRoomId], references: [id], onDelete: Cascade)
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status     String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, TERMINATED
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  timeSpent  Int? // seconds
+  violations String    @default("[]") // JSON string array
+  ipAddress  String?
+  userAgent  String?
+
+  result  ExamResult?
+  answers ExamAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ExamAnswer {
+  id           String      @id @default(cuid())
+  attemptId    String
+  attempt      ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId   String
+  question     Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  answer       String
+  isCorrect    Boolean
+  pointsEarned Int         @default(0)
+  timeSpent    Int? // seconds
+
+  createdAt DateTime @default(now())
+
+  @@unique([attemptId, questionId])
 }
 
 model ExamResult {
-  id            String   @id @default(cuid())
-  examId        String
-  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  studentId     String
-  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  score         Float
+  id             String      @id @default(cuid())
+  attemptId      String      @unique
+  attempt        ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  studentId      String
+  student        Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  examRoomId     String
+  examRoom       ExamRoom    @relation(fields: [examRoomId], references: [id], onDelete: Cascade)
   totalQuestions Int
   correctAnswers Int
-  isPassed      Boolean
-  timeSpent     Int      // dalam detik
-  startedAt     DateTime
-  submittedAt   DateTime
-  answers       Json     // Menyimpan jawaban siswa
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  wrongAnswers   Int
+  unanswered     Int
+  totalPoints    Int
+  earnedPoints   Int
+  percentage     Float
+  timeSpent      Int // seconds
+  violations     String      @default("[]") // JSON string array
 
-  @@unique([examId, studentId])
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
 }
 
-model Violation {
-  id        String   @id @default(cuid())
-  examId    String
-  exam      Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  studentId String
-  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  type      String   // SWITCH_TAB, MULTIPLE_FACES, NO_FACE, VOICE_DETECTED, etc.
-  timestamp DateTime
-  severity  String   @default("LOW") // LOW, MEDIUM, HIGH
-  actionTaken String?
-  
+// ==================== ANNOUNCEMENT ====================
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  type        String    @default("INFO") // INFO, WARNING, IMPORTANT
+  target      String    @default("ALL") // ALL, STUDENTS, TEACHERS, CLASS
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  isPublished Boolean   @default(false)
+  publishDate DateTime?
+  expiryDate  DateTime?
+  attachments String?   @default("[]") // JSON string array
+
+  // Relasi
+  teacherId String?
+  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+
+  examRoomId String?
+  examRoom   ExamRoom? @relation(fields: [examRoomId], references: [id], onDelete: SetNull)
+
+  createdByAdminId String?
+  createdByAdmin   Admin?  @relation(fields: [createdByAdminId], references: [id], onDelete: Cascade)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([examRoomId])
+  @@index([createdByAdminId])
+}
+
+// ==================== SYSTEM MANAGEMENT ====================
+model SystemSetting {
+  id          String  @id @default(cuid())
+  key         String  @unique
+  value       String // JSON string or plain text
+  category    String  @default("system") // system, exam, security, notification
+  description String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Announcement {
-  id              String   @id @default(cuid())
-  title           String
-  content         String   // Hapus @db.Text
-  type            String   @default("INFO")
-  priority        String   @default("MEDIUM")
-  isPublished     Boolean  @default(false)
-  publishDate     DateTime
-  expiryDate      DateTime
-  attachments     String[]
-  createdByAdminId String
-  createdByAdmin  Admin    @relation(fields: [createdByAdminId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-model FAQ {
-  id          String   @id @default(cuid())
-  question    String
-  answer      String   // Hapus @db.Text
-  category    String
-  order       Int
-  isPublished Boolean  @default(false)
-  views       Int      @default(0)
-  helpful     Int      @default(0)
-  notHelpful  Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
 model ExamReport {
-  id               String   @id @default(cuid())
-  examId           String
-  exam             Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
-  reportType       String   // PARTICIPANT, PERFORMANCE, VIOLATION, COMPREHENSIVE
-  format           String   // PDF, EXCEL, CSV
-  status           String   @default("GENERATING") // GENERATING, READY, FAILED
-  filePath         String?
-  fileName         String
-  generatedByAdminId String
-  generatedByAdmin Admin    @relation(fields: [generatedByAdminId], references: [id], onDelete: Cascade)
-  downloadCount    Int      @default(0)
-  lastDownloadedAt DateTime?
-  error            String?
-  
-  generatedAt      DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
+  id             String   @id @default(cuid())
+  examRoomId     String
+  examRoom       ExamRoom @relation(fields: [examRoomId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  statistics     String? // JSON string
+  issues         String?
+  conclusions    String?
+  createdBy      String
+  createdByAdmin Admin    @relation(fields: [createdBy], references: [id], onDelete: Cascade)
 
-model SystemSetting {
-  id                String   @id @default(cuid())
-  key               String   @unique
-  value             Json
-  description       String?
-  category          String   @default("EXAM") // EXAM, SECURITY, GENERAL, NOTIFICATION
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
